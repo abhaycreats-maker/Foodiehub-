@@ -1,0 +1,666 @@
+import { useState, useEffect } from "react";
+
+const menuItems = [
+  { id: 1, name: "Butter Chicken", category: "Main Course", price: 349, rating: 4.8, time: "25 min", emoji: "🍛", desc: "Creamy tomato-based curry with tender chicken", calories: "520 kcal", badge: "Bestseller" },
+  { id: 2, name: "Paneer Tikka", category: "Starters", price: 259, rating: 4.7, time: "15 min", emoji: "🧀", desc: "Smoky grilled cottage cheese with mint chutney", calories: "380 kcal", badge: "Veg" },
+  { id: 3, name: "Chicken Biryani", category: "Rice", price: 399, rating: 4.9, time: "35 min", emoji: "🍚", desc: "Aromatic basmati rice with spiced chicken", calories: "680 kcal", badge: "Chef's Pick" },
+  { id: 4, name: "Masala Dosa", category: "South Indian", price: 179, rating: 4.6, time: "20 min", emoji: "🫓", desc: "Crispy crepe filled with spiced potato", calories: "310 kcal", badge: "Veg" },
+  { id: 5, name: "Tandoori Platter", category: "Starters", price: 499, rating: 4.8, time: "30 min", emoji: "🍗", desc: "Mixed grill with naan and dips", calories: "720 kcal", badge: "Popular" },
+  { id: 6, name: "Dal Makhani", category: "Main Course", price: 229, rating: 4.5, time: "20 min", emoji: "🫕", desc: "Slow-cooked black lentils with butter & cream", calories: "420 kcal", badge: "Veg" },
+  { id: 7, name: "Gulab Jamun", category: "Desserts", price: 129, rating: 4.9, time: "10 min", emoji: "🍮", desc: "Soft milk solids dumplings in rose syrup", calories: "290 kcal", badge: "Sweet" },
+  { id: 8, name: "Mango Lassi", category: "Drinks", price: 99, rating: 4.7, time: "5 min", emoji: "🥭", desc: "Thick yogurt drink blended with Alphonso mango", calories: "210 kcal", badge: "Fresh" },
+  { id: 9, name: "Palak Paneer", category: "Main Course", price: 279, rating: 4.6, time: "25 min", emoji: "🥬", desc: "Creamy spinach gravy with golden paneer cubes", calories: "440 kcal", badge: "Veg" },
+  { id: 10, name: "Chole Bhature", category: "North Indian", price: 199, rating: 4.7, time: "20 min", emoji: "🫘", desc: "Fluffy fried bread with spiced chickpea curry", calories: "610 kcal", badge: "Popular" },
+  { id: 11, name: "Fish Curry", category: "Main Course", price: 379, rating: 4.5, time: "30 min", emoji: "🐟", desc: "Coastal-style tangy fish in coconut gravy", calories: "490 kcal", badge: "Spicy" },
+  { id: 12, name: "Rasgulla", category: "Desserts", price: 109, rating: 4.8, time: "10 min", emoji: "⚪", desc: "Soft spongy cheese balls soaked in light syrup", calories: "230 kcal", badge: "Sweet" },
+];
+
+const categories = ["All", "Starters", "Main Course", "Rice", "South Indian", "North Indian", "Desserts", "Drinks"];
+
+const badgeColors = {
+  "Bestseller": "#FF6B35",
+  "Veg": "#22C55E",
+  "Chef's Pick": "#8B5CF6",
+  "Popular": "#F59E0B",
+  "Fresh": "#06B6D4",
+  "Spicy": "#EF4444",
+  "Sweet": "#EC4899",
+};
+
+export default function FoodieHub() {
+  const [page, setPage] = useState("home");
+  const [cart, setCart] = useState([]);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [user, setUser] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [formData, setFormData] = useState({ name: "", email: "", password: "", phone: "" });
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const addToCart = (item) => {
+    setCart(prev => {
+      const exists = prev.find(c => c.id === item.id);
+      if (exists) return prev.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
+      return [...prev, { ...item, qty: 1 }];
+    });
+    showToast(`${item.name} added to cart! 🛒`);
+  };
+
+  const updateQty = (id, delta) => {
+    setCart(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, qty: c.qty + delta } : c).filter(c => c.qty > 0);
+      return updated;
+    });
+  };
+
+  const cartTotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const cartCount = cart.reduce((s, c) => s + c.qty, 0);
+
+  const filtered = menuItems.filter(i =>
+    (activeCategory === "All" || i.category === activeCategory) &&
+    (i.name.toLowerCase().includes(searchQuery.toLowerCase()) || i.category.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleAuth = () => {
+    if (authMode === "signup" && (!formData.name || !formData.email || !formData.password)) {
+      showToast("Please fill all fields!", "error"); return;
+    }
+    if (!formData.email || !formData.password) {
+      showToast("Please fill all fields!", "error"); return;
+    }
+    setUser({ name: formData.name || formData.email.split("@")[0], email: formData.email });
+    showToast(`Welcome to FoodieHub! 🎉`);
+    setPage("home");
+  };
+
+  const placeOrder = () => {
+    if (!user) { setPage("auth"); showToast("Please login to place order!", "error"); return; }
+    if (cart.length === 0) { showToast("Cart is empty!", "error"); return; }
+    setOrderPlaced(true);
+    setCart([]);
+    setTimeout(() => { setOrderPlaced(false); setPage("home"); }, 3500);
+  };
+
+  useEffect(() => {
+    setTimeout(() => setMenuVisible(true), 100);
+  }, [page]);
+
+  const styles = {
+    root: {
+      fontFamily: "'Playfair Display', Georgia, serif",
+      background: "#0A0A0A",
+      minHeight: "100vh",
+      color: "#F5F0E8",
+      position: "relative",
+      overflowX: "hidden",
+    },
+    nav: {
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+      background: "rgba(10,10,10,0.92)", backdropFilter: "blur(20px)",
+      borderBottom: "1px solid rgba(212,175,55,0.2)",
+      padding: "0 2rem", display: "flex", alignItems: "center",
+      justifyContent: "space-between", height: "70px",
+    },
+    logo: {
+      fontSize: "1.8rem", fontWeight: 700, letterSpacing: "-0.5px",
+      background: "linear-gradient(135deg, #D4AF37, #FF6B35)",
+      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+      cursor: "pointer",
+    },
+    navLinks: { display: "flex", gap: "1.5rem", alignItems: "center" },
+    navBtn: (active) => ({
+      background: active ? "linear-gradient(135deg, #D4AF37, #FF6B35)" : "transparent",
+      border: active ? "none" : "1px solid rgba(212,175,55,0.4)",
+      color: active ? "#0A0A0A" : "#D4AF37",
+      padding: "8px 20px", borderRadius: "50px", cursor: "pointer",
+      fontSize: "0.85rem", fontFamily: "inherit", fontWeight: 600,
+      transition: "all 0.3s",
+    }),
+    cartBtn: {
+      background: "linear-gradient(135deg, #FF6B35, #D4AF37)",
+      border: "none", color: "#0A0A0A",
+      padding: "8px 20px", borderRadius: "50px", cursor: "pointer",
+      fontSize: "0.85rem", fontFamily: "inherit", fontWeight: 700,
+      display: "flex", alignItems: "center", gap: "6px",
+      boxShadow: "0 0 20px rgba(255,107,53,0.4)",
+    },
+    hero: {
+      minHeight: "100vh", display: "flex", alignItems: "center",
+      padding: "70px 3rem 0",
+      background: "radial-gradient(ellipse at 30% 50%, rgba(212,175,55,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 20%, rgba(255,107,53,0.08) 0%, transparent 50%), #0A0A0A",
+    },
+    heroLeft: { flex: 1, paddingRight: "3rem" },
+    heroTag: {
+      display: "inline-block",
+      background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)",
+      color: "#D4AF37", padding: "6px 16px", borderRadius: "50px",
+      fontSize: "0.8rem", letterSpacing: "2px", textTransform: "uppercase",
+      marginBottom: "1.5rem",
+    },
+    heroTitle: {
+      fontSize: "clamp(2.5rem, 5vw, 4.5rem)", fontWeight: 900,
+      lineHeight: 1.1, marginBottom: "1.5rem",
+      color: "#F5F0E8",
+    },
+    heroHighlight: {
+      background: "linear-gradient(135deg, #D4AF37, #FF6B35)",
+      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+    },
+    heroDesc: {
+      fontSize: "1.1rem", color: "rgba(245,240,232,0.6)",
+      lineHeight: 1.7, marginBottom: "2.5rem", maxWidth: "480px",
+      fontFamily: "'Lora', Georgia, serif",
+    },
+    heroButtons: { display: "flex", gap: "1rem", flexWrap: "wrap" },
+    primaryBtn: {
+      background: "linear-gradient(135deg, #D4AF37, #FF6B35)",
+      border: "none", color: "#0A0A0A", padding: "14px 32px",
+      borderRadius: "50px", cursor: "pointer", fontSize: "1rem",
+      fontFamily: "inherit", fontWeight: 700,
+      boxShadow: "0 4px 30px rgba(212,175,55,0.3)",
+      transition: "all 0.3s",
+    },
+    secondaryBtn: {
+      background: "transparent",
+      border: "1px solid rgba(212,175,55,0.5)", color: "#D4AF37",
+      padding: "14px 32px", borderRadius: "50px", cursor: "pointer",
+      fontSize: "1rem", fontFamily: "inherit", fontWeight: 600,
+      transition: "all 0.3s",
+    },
+    heroRight: {
+      flex: 1, display: "flex", justifyContent: "center",
+      alignItems: "center", position: "relative",
+    },
+    heroImgWrapper: {
+      width: "420px", height: "420px", borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(212,175,55,0.15), rgba(255,107,53,0.1))",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: "13rem", position: "relative",
+      border: "1px solid rgba(212,175,55,0.2)",
+      animation: "float 4s ease-in-out infinite",
+    },
+    statsRow: {
+      display: "flex", gap: "3rem", marginTop: "3rem",
+    },
+    stat: { textAlign: "center" },
+    statNum: { fontSize: "1.8rem", fontWeight: 900, color: "#D4AF37" },
+    statLabel: { fontSize: "0.8rem", color: "rgba(245,240,232,0.5)", letterSpacing: "1px", textTransform: "uppercase" },
+    menuSection: {
+      padding: "5rem 3rem",
+      background: "linear-gradient(180deg, #0A0A0A 0%, #0F0F0F 100%)",
+    },
+    sectionTitle: {
+      fontSize: "2.5rem", fontWeight: 900, marginBottom: "0.5rem",
+      textAlign: "center",
+    },
+    sectionSub: {
+      textAlign: "center", color: "rgba(245,240,232,0.5)",
+      marginBottom: "3rem", fontFamily: "'Lora', serif", fontStyle: "italic",
+    },
+    searchBar: {
+      display: "flex", justifyContent: "center", marginBottom: "2rem",
+    },
+    searchInput: {
+      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(212,175,55,0.3)",
+      borderRadius: "50px", padding: "12px 24px", color: "#F5F0E8",
+      fontFamily: "inherit", fontSize: "0.95rem", width: "400px", maxWidth: "100%",
+      outline: "none",
+    },
+    categories: {
+      display: "flex", gap: "0.75rem", flexWrap: "wrap",
+      justifyContent: "center", marginBottom: "3rem",
+    },
+    catBtn: (active) => ({
+      background: active ? "linear-gradient(135deg, #D4AF37, #FF6B35)" : "rgba(255,255,255,0.05)",
+      border: active ? "none" : "1px solid rgba(212,175,55,0.2)",
+      color: active ? "#0A0A0A" : "rgba(245,240,232,0.7)",
+      padding: "8px 20px", borderRadius: "50px", cursor: "pointer",
+      fontSize: "0.85rem", fontFamily: "inherit", fontWeight: active ? 700 : 400,
+      transition: "all 0.3s",
+    }),
+    grid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+      gap: "1.5rem",
+    },
+    card: {
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(212,175,55,0.15)",
+      borderRadius: "20px", overflow: "hidden",
+      transition: "all 0.3s", cursor: "default",
+    },
+    cardImg: {
+      height: "160px", background: "rgba(212,175,55,0.08)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: "5rem", position: "relative",
+    },
+    cardBadge: (color) => ({
+      position: "absolute", top: "12px", right: "12px",
+      background: color || "#D4AF37", color: "#fff",
+      padding: "3px 10px", borderRadius: "50px",
+      fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.5px",
+    }),
+    cardBody: { padding: "1.2rem" },
+    cardName: { fontSize: "1.1rem", fontWeight: 700, marginBottom: "4px" },
+    cardDesc: {
+      fontSize: "0.8rem", color: "rgba(245,240,232,0.5)",
+      marginBottom: "0.75rem", fontFamily: "'Lora', serif",
+    },
+    cardMeta: { display: "flex", gap: "1rem", fontSize: "0.78rem", marginBottom: "1rem" },
+    metaItem: { color: "rgba(245,240,232,0.5)", display: "flex", alignItems: "center", gap: "3px" },
+    cardBottom: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+    price: { fontSize: "1.3rem", fontWeight: 900, color: "#D4AF37" },
+    addBtn: {
+      background: "linear-gradient(135deg, #D4AF37, #FF6B35)",
+      border: "none", color: "#0A0A0A",
+      padding: "8px 18px", borderRadius: "50px",
+      cursor: "pointer", fontSize: "0.85rem",
+      fontFamily: "inherit", fontWeight: 700,
+      boxShadow: "0 4px 15px rgba(212,175,55,0.3)",
+    },
+    aboutSection: {
+      padding: "5rem 3rem",
+      background: "linear-gradient(135deg, rgba(212,175,55,0.05), rgba(255,107,53,0.03))",
+      borderTop: "1px solid rgba(212,175,55,0.1)",
+    },
+    aboutGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" },
+    aboutLeft: {},
+    featureList: { marginTop: "2rem", display: "flex", flexDirection: "column", gap: "1rem" },
+    feature: {
+      display: "flex", gap: "1rem", alignItems: "flex-start",
+      padding: "1rem", background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(212,175,55,0.1)", borderRadius: "12px",
+    },
+    featureIcon: {
+      fontSize: "1.5rem", background: "rgba(212,175,55,0.1)",
+      width: "44px", height: "44px", borderRadius: "10px",
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    },
+    featureText: {},
+    featureTitle: { fontWeight: 700, marginBottom: "3px", fontSize: "0.95rem" },
+    featureDesc: { fontSize: "0.82rem", color: "rgba(245,240,232,0.5)", fontFamily: "'Lora', serif" },
+    mapCard: {
+      background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.2)",
+      borderRadius: "20px", overflow: "hidden",
+    },
+    mapHeader: {
+      padding: "2rem", background: "linear-gradient(135deg, rgba(212,175,55,0.1), rgba(255,107,53,0.05))",
+      borderBottom: "1px solid rgba(212,175,55,0.1)",
+    },
+    mapEmoji: { fontSize: "3rem", marginBottom: "0.5rem" },
+    infoRow: { display: "flex", gap: "1rem", padding: "1.5rem 2rem", flexWrap: "wrap" },
+    infoCard: {
+      flex: 1, minWidth: "120px",
+      padding: "1rem", background: "rgba(212,175,55,0.05)",
+      border: "1px solid rgba(212,175,55,0.1)", borderRadius: "10px",
+      textAlign: "center",
+    },
+    infoIcon: { fontSize: "1.3rem", marginBottom: "4px" },
+    infoLabel: { fontSize: "0.7rem", color: "rgba(245,240,232,0.4)", textTransform: "uppercase", letterSpacing: "1px" },
+    infoValue: { fontSize: "0.9rem", fontWeight: 700, color: "#D4AF37", marginTop: "2px" },
+    footer: {
+      padding: "2rem 3rem",
+      borderTop: "1px solid rgba(212,175,55,0.1)",
+      textAlign: "center",
+      color: "rgba(245,240,232,0.3)",
+      fontSize: "0.85rem",
+    },
+    cartPage: { padding: "100px 3rem 4rem" },
+    cartItem: {
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      padding: "1.2rem", background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(212,175,55,0.1)", borderRadius: "14px",
+      marginBottom: "1rem",
+    },
+    qtyControls: { display: "flex", alignItems: "center", gap: "0.75rem" },
+    qtyBtn: {
+      width: "32px", height: "32px", borderRadius: "50%",
+      background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)",
+      color: "#D4AF37", cursor: "pointer", fontSize: "1.2rem",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "inherit",
+    },
+    cartSummary: {
+      background: "rgba(212,175,55,0.05)", border: "1px solid rgba(212,175,55,0.2)",
+      borderRadius: "20px", padding: "2rem", marginTop: "2rem",
+    },
+    authPage: {
+      minHeight: "100vh", display: "flex", alignItems: "center",
+      justifyContent: "center", padding: "70px 2rem 2rem",
+      background: "radial-gradient(ellipse at center, rgba(212,175,55,0.08), #0A0A0A)",
+    },
+    authCard: {
+      background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.2)",
+      borderRadius: "24px", padding: "3rem", width: "420px", maxWidth: "100%",
+    },
+    input: {
+      width: "100%", background: "rgba(255,255,255,0.05)",
+      border: "1px solid rgba(212,175,55,0.3)", borderRadius: "10px",
+      padding: "12px 16px", color: "#F5F0E8",
+      fontFamily: "inherit", fontSize: "0.95rem",
+      outline: "none", marginBottom: "1rem", boxSizing: "border-box",
+    },
+    label: { fontSize: "0.82rem", color: "rgba(245,240,232,0.5)", marginBottom: "6px", display: "block" },
+    toast: (type) => ({
+      position: "fixed", bottom: "2rem", right: "2rem", zIndex: 1000,
+      background: type === "error" ? "#EF4444" : "linear-gradient(135deg, #D4AF37, #FF6B35)",
+      color: type === "error" ? "#fff" : "#0A0A0A",
+      padding: "12px 24px", borderRadius: "50px",
+      fontWeight: 700, fontSize: "0.9rem",
+      boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+      animation: "slideUp 0.3s ease",
+    }),
+    orderSuccess: {
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(10,10,10,0.95)", backdropFilter: "blur(20px)",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      textAlign: "center",
+    },
+  };
+
+  if (orderPlaced) return (
+    <div style={styles.orderSuccess}>
+      <style>{`@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.1)}100%{transform:scale(1)}} @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}} @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <div style={{ fontSize: "6rem", animation: "pop 0.5s ease", marginBottom: "1rem" }}>🎉</div>
+      <h2 style={{ fontSize: "2.5rem", fontWeight: 900, color: "#D4AF37", marginBottom: "0.5rem" }}>Order Placed!</h2>
+      <p style={{ color: "rgba(245,240,232,0.6)", fontSize: "1.1rem" }}>Your delicious food is being prepared with love 🍽️</p>
+      <p style={{ color: "rgba(245,240,232,0.3)", marginTop: "1rem", fontSize: "0.9rem" }}>Estimated delivery: 30-45 mins</p>
+    </div>
+  );
+
+  return (
+    <div style={styles.root}>
+      <style>{`
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Lora:ital@0;1&display=swap');
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.1)}100%{transform:scale(1)}}
+        ::-webkit-scrollbar{width:6px;background:#0A0A0A}
+        ::-webkit-scrollbar-thumb{background:rgba(212,175,55,0.3);border-radius:3px}
+        .card-hover:hover{transform:translateY(-4px);border-color:rgba(212,175,55,0.4)!important;box-shadow:0 20px 40px rgba(0,0,0,0.3)}
+        .btn-hover:hover{transform:scale(1.05);box-shadow:0 8px 25px rgba(212,175,55,0.4)!important}
+      `}</style>
+
+      {/* NAVBAR */}
+      <nav style={styles.nav}>
+        <div style={styles.logo} onClick={() => setPage("home")}>🍽️ FoodieHub</div>
+        <div style={styles.navLinks}>
+          <button style={styles.navBtn(page === "home")} onClick={() => setPage("home")}>Home</button>
+          <button style={styles.navBtn(false)} onClick={() => { setPage("home"); setTimeout(() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" }), 100); }}>Menu</button>
+          <button style={styles.navBtn(false)} onClick={() => { setPage("home"); setTimeout(() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" }), 100); }}>About</button>
+          {user
+            ? <span style={{ color: "#D4AF37", fontSize: "0.85rem", fontWeight: 600 }}>👤 {user.name}</span>
+            : <button style={styles.navBtn(page === "auth")} onClick={() => setPage("auth")}>Sign Up / Login</button>}
+          <button style={styles.cartBtn} onClick={() => setPage("cart")} className="btn-hover">
+            🛒 Cart {cartCount > 0 && <span style={{ background: "#0A0A0A", borderRadius: "50px", padding: "2px 8px", fontSize: "0.75rem" }}>{cartCount}</span>}
+          </button>
+        </div>
+      </nav>
+
+      {/* HOME PAGE */}
+      {page === "home" && (
+        <>
+          {/* HERO */}
+          <section style={styles.hero}>
+            <div style={styles.heroLeft}>
+              <div style={styles.heroTag}>⭐ Premium Dining Experience</div>
+              <h1 style={styles.heroTitle}>
+                Taste The <span style={styles.heroHighlight}>Art</span> of<br />
+                Fine Cooking
+              </h1>
+              <p style={styles.heroDesc}>
+                Authentic flavors crafted by master chefs. From rich curries to melt-in-mouth desserts — every dish tells a story. Delivered hot to your door.
+              </p>
+              <div style={styles.heroButtons}>
+                <button style={styles.primaryBtn} className="btn-hover" onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
+                  Explore Menu →
+                </button>
+                <button style={styles.secondaryBtn} className="btn-hover" onClick={() => setPage("auth")}>
+                  Join FoodieHub
+                </button>
+              </div>
+              <div style={styles.statsRow}>
+                {[["500+", "Dishes"], ["4.9★", "Rating"], ["50K+", "Orders"], ["30min", "Delivery"]].map(([n, l]) => (
+                  <div key={l} style={styles.stat}>
+                    <div style={styles.statNum}>{n}</div>
+                    <div style={styles.statLabel}>{l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.heroRight}>
+              <div style={styles.heroImgWrapper}>🍛</div>
+            </div>
+          </section>
+
+          {/* MENU */}
+          <section id="menu" style={styles.menuSection}>
+            <div style={styles.heroTag}>🍴 Our Menu</div>
+            <h2 style={{ ...styles.sectionTitle, marginTop: "0.5rem" }}>
+              Handcrafted <span style={styles.heroHighlight}>Delicacies</span>
+            </h2>
+            <p style={styles.sectionSub}>Every dish is a masterpiece — made with love and the finest ingredients</p>
+            <div style={styles.searchBar}>
+              <input
+                style={styles.searchInput}
+                placeholder="🔍 Search dishes..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div style={styles.categories}>
+              {categories.map(c => (
+                <button key={c} style={styles.catBtn(activeCategory === c)} onClick={() => setActiveCategory(c)}>{c}</button>
+              ))}
+            </div>
+            <div style={styles.grid}>
+              {filtered.map(item => (
+                <div key={item.id} style={styles.card} className="card-hover">
+                  <div style={styles.cardImg}>
+                    {item.emoji}
+                    <div style={styles.cardBadge(badgeColors[item.badge])}>{item.badge}</div>
+                  </div>
+                  <div style={styles.cardBody}>
+                    <div style={styles.cardName}>{item.name}</div>
+                    <div style={styles.cardDesc}>{item.desc}</div>
+                    <div style={styles.cardMeta}>
+                      <span style={styles.metaItem}>⭐ {item.rating}</span>
+                      <span style={styles.metaItem}>⏱ {item.time}</span>
+                      <span style={styles.metaItem}>🔥 {item.calories}</span>
+                    </div>
+                    <div style={styles.cardBottom}>
+                      <div style={styles.price}>₹{item.price}</div>
+                      <button style={styles.addBtn} className="btn-hover" onClick={() => addToCart(item)}>+ Add</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {filtered.length === 0 && (
+              <div style={{ textAlign: "center", padding: "4rem", color: "rgba(245,240,232,0.3)" }}>
+                <div style={{ fontSize: "4rem" }}>🍽️</div>
+                <p style={{ marginTop: "1rem" }}>No dishes found. Try a different search.</p>
+              </div>
+            )}
+          </section>
+
+          {/* ABOUT */}
+          <section id="about" style={styles.aboutSection}>
+            <div style={{ ...styles.heroTag, display: "block", width: "fit-content", marginBottom: "0.5rem" }}>🏠 About Us</div>
+            <h2 style={{ ...styles.sectionTitle, textAlign: "left", marginBottom: "0.5rem" }}>
+              The Story of <span style={styles.heroHighlight}>FoodieHub</span>
+            </h2>
+            <div style={styles.aboutGrid}>
+              <div style={styles.aboutLeft}>
+                <p style={{ color: "rgba(245,240,232,0.6)", lineHeight: 1.8, fontFamily: "'Lora', serif", fontSize: "1rem", marginTop: "1rem" }}>
+                  FoodieHub was born from a simple dream — to bring authentic, restaurant-quality food to every home. Founded in 2019, we've partnered with master chefs who've spent decades perfecting traditional recipes passed down through generations.
+                </p>
+                <p style={{ color: "rgba(245,240,232,0.6)", lineHeight: 1.8, fontFamily: "'Lora', serif", fontSize: "1rem", marginTop: "1rem" }}>
+                  We source only the freshest ingredients, never compromise on quality, and believe that great food brings people together. Every order is crafted fresh — no pre-made shortcuts.
+                </p>
+                <div style={styles.featureList}>
+                  {[
+                    ["🥘", "Farm Fresh Ingredients", "Sourced daily from local farms & trusted suppliers"],
+                    ["👨‍🍳", "Master Chefs", "15+ years experience, trained in 5-star kitchens"],
+                    ["⚡", "Fast Delivery", "Hot & fresh to your door in under 45 minutes"],
+                    ["🌿", "Hygienic Kitchen", "FSSAI certified, 5-star cleanliness rating"],
+                  ].map(([icon, title, desc]) => (
+                    <div key={title} style={styles.feature}>
+                      <div style={styles.featureIcon}>{icon}</div>
+                      <div style={styles.featureText}>
+                        <div style={styles.featureTitle}>{title}</div>
+                        <div style={styles.featureDesc}>{desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={styles.mapCard}>
+                  <div style={styles.mapHeader}>
+                    <div style={styles.mapEmoji}>📍</div>
+                    <h3 style={{ fontSize: "1.3rem", fontWeight: 700, marginBottom: "4px" }}>Find Us</h3>
+                    <p style={{ color: "rgba(245,240,232,0.5)", fontSize: "0.9rem" }}>27, Connaught Place, New Delhi – 110001</p>
+                    <p style={{ color: "rgba(245,240,232,0.4)", fontSize: "0.82rem", marginTop: "4px" }}>Landmark: Near Palika Bazaar Metro Gate</p>
+                  </div>
+                  <div style={{
+                    height: "180px", background: "rgba(212,175,55,0.05)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "5rem", borderBottom: "1px solid rgba(212,175,55,0.1)",
+                  }}>🗺️</div>
+                  <div style={styles.infoRow}>
+                    {[["🕐", "Hours", "11am – 11pm"], ["📞", "Call Us", "+91 98765 43210"], ["⭐", "Rating", "4.9 / 5.0"], ["🚚", "Delivery", "All Delhi NCR"]].map(([icon, label, value]) => (
+                      <div key={label} style={styles.infoCard}>
+                        <div style={styles.infoIcon}>{icon}</div>
+                        <div style={styles.infoLabel}>{label}</div>
+                        <div style={styles.infoValue}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* FOOTER */}
+          <footer style={styles.footer}>
+            <div style={{ fontSize: "1.5rem", color: "#D4AF37", fontWeight: 900, marginBottom: "0.5rem" }}>🍽️ FoodieHub</div>
+            <p>© 2025 FoodieHub. All rights reserved. Crafted with ❤️ and good food.</p>
+          </footer>
+        </>
+      )}
+
+      {/* CART PAGE */}
+      {page === "cart" && (
+        <div style={styles.cartPage}>
+          <h2 style={{ fontSize: "2rem", fontWeight: 900, marginBottom: "0.25rem" }}>Your <span style={styles.heroHighlight}>Cart</span></h2>
+          <p style={{ color: "rgba(245,240,232,0.5)", marginBottom: "2rem", fontFamily: "'Lora', serif" }}>{cartCount} item{cartCount !== 1 ? "s" : ""} selected</p>
+          {cart.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "4rem", color: "rgba(245,240,232,0.3)" }}>
+              <div style={{ fontSize: "5rem" }}>🛒</div>
+              <p style={{ marginTop: "1rem", fontSize: "1.1rem" }}>Your cart is empty</p>
+              <button style={{ ...styles.primaryBtn, marginTop: "1.5rem" }} onClick={() => setPage("home")}>Browse Menu</button>
+            </div>
+          ) : (
+            <>
+              {cart.map(item => (
+                <div key={item.id} style={styles.cartItem}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <span style={{ fontSize: "2.5rem" }}>{item.emoji}</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "1rem" }}>{item.name}</div>
+                      <div style={{ color: "rgba(245,240,232,0.5)", fontSize: "0.85rem" }}>₹{item.price} each</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
+                    <div style={styles.qtyControls}>
+                      <button style={styles.qtyBtn} onClick={() => updateQty(item.id, -1)}>−</button>
+                      <span style={{ fontWeight: 700, minWidth: "20px", textAlign: "center" }}>{item.qty}</span>
+                      <button style={styles.qtyBtn} onClick={() => updateQty(item.id, 1)}>+</button>
+                    </div>
+                    <div style={{ color: "#D4AF37", fontWeight: 900, fontSize: "1.1rem", minWidth: "70px", textAlign: "right" }}>₹{item.price * item.qty}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={styles.cartSummary}>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, marginBottom: "1rem" }}>Order Summary</h3>
+                {[["Subtotal", `₹${cartTotal}`], ["Delivery Fee", "₹49"], ["Taxes (5%)", `₹${Math.round(cartTotal * 0.05)}`]].map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", color: "rgba(245,240,232,0.6)", fontSize: "0.9rem" }}>
+                    <span>{k}</span><span>{v}</span>
+                  </div>
+                ))}
+                <div style={{ height: "1px", background: "rgba(212,175,55,0.2)", margin: "1rem 0" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.2rem", fontWeight: 900 }}>
+                  <span>Total</span>
+                  <span style={{ color: "#D4AF37" }}>₹{cartTotal + 49 + Math.round(cartTotal * 0.05)}</span>
+                </div>
+                <button style={{ ...styles.primaryBtn, width: "100%", marginTop: "1.5rem", fontSize: "1.05rem" }} className="btn-hover" onClick={placeOrder}>
+                  Place Order 🎉
+                </button>
+                {!user && <p style={{ textAlign: "center", color: "rgba(245,240,232,0.4)", fontSize: "0.82rem", marginTop: "0.75rem" }}>You'll need to login to complete your order</p>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* AUTH PAGE */}
+      {page === "auth" && (
+        <div style={styles.authPage}>
+          <div style={styles.authCard}>
+            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🍽️</div>
+              <h2 style={{ fontSize: "1.8rem", fontWeight: 900, color: "#D4AF37" }}>
+                {authMode === "login" ? "Welcome Back!" : "Join FoodieHub"}
+              </h2>
+              <p style={{ color: "rgba(245,240,232,0.5)", fontSize: "0.9rem", fontFamily: "'Lora', serif", marginTop: "4px" }}>
+                {authMode === "login" ? "Sign in to your account" : "Create your free account today"}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "2rem", background: "rgba(255,255,255,0.05)", borderRadius: "10px", padding: "4px" }}>
+              {["login", "signup"].map(m => (
+                <button key={m} onClick={() => setAuthMode(m)} style={{
+                  flex: 1, padding: "10px", borderRadius: "8px", border: "none",
+                  background: authMode === m ? "linear-gradient(135deg, #D4AF37, #FF6B35)" : "transparent",
+                  color: authMode === m ? "#0A0A0A" : "rgba(245,240,232,0.5)",
+                  fontFamily: "inherit", fontWeight: 700, cursor: "pointer",
+                  fontSize: "0.9rem",
+                }}>{m === "login" ? "Login" : "Sign Up"}</button>
+              ))}
+            </div>
+            {authMode === "signup" && (
+              <>
+                <label style={styles.label}>Full Name</label>
+                <input style={styles.input} placeholder="Your full name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                <label style={styles.label}>Phone Number</label>
+                <input style={styles.input} placeholder="+91 98765 43210" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+              </>
+            )}
+            <label style={styles.label}>Email Address</label>
+            <input style={styles.input} type="email" placeholder="you@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+            <label style={styles.label}>Password</label>
+            <input style={styles.input} type="password" placeholder="••••••••" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
+            <button style={{ ...styles.primaryBtn, width: "100%", marginTop: "0.5rem" }} className="btn-hover" onClick={handleAuth}>
+              {authMode === "login" ? "Login →" : "Create Account →"}
+            </button>
+            <p style={{ textAlign: "center", color: "rgba(245,240,232,0.4)", fontSize: "0.8rem", marginTop: "1rem" }}>
+              By continuing, you agree to our Terms of Service & Privacy Policy
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {toast && <div style={styles.toast(toast.type)}>{toast.msg}</div>}
+    </div>
+  );
+}
